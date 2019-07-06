@@ -13,8 +13,8 @@ void main()
 
 #define M_PI 3.1415926535897932384626433832795
 #define BOUNCES	4
-#define SAMPLES 5
-#define MAX_SPHERES	20
+#define SAMPLES 6
+#define MAX_SPHERES	19
 
 uniform vec2 window_size;
 uniform float random_seed;

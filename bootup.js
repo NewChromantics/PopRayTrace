@@ -12,9 +12,9 @@ const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
 
 Pop.Include('PopShaderCache.js');
 Pop.Include('PopEngineCommon/PopFrameCounter.js');
-//Pop.Include('PopEngineCommon/PopCamera.js');
+Pop.Include('PopEngineCommon/PopCamera.js');
 
-const MAX_SPHERES = 20;
+const MAX_SPHERES = 19;
 let RenderSpheres =
 [
  [-1,0,-1,0.4,	1,0,0,0,	1,0,0,0,	0,0,0,0	],
@@ -45,7 +45,7 @@ function UnrollArray16s(Arrays,MaxLength)
 	return Elements;
 }
 
-let Camera = {};
+let Camera = new Pop.Camera();
 Camera.Position = [ 0, 0.09, 0.2 ];
 Camera.LookAt = [ 0,0,0 ];
 Camera.Aperture = 0.1;
@@ -219,7 +219,7 @@ function Render(RenderTarget)
 	RenderTarget.DrawQuad( Shader, SetUniforms );
 }
 
-let Window = new Pop.Opengl.Window("Shiny");
+let Window = new Pop.Opengl.Window("Pop.Shiny");
 Window.OnRender = Render;
 
 Window.OnMouseDown = function(x,y,Button)
