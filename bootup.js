@@ -11,21 +11,46 @@ const VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
 
 Pop.Include('PopShaderCache.js');
+Pop.Include('PopEngineCommon/PopFrameCounter.js');
+//Pop.Include('PopEngineCommon/PopCamera.js');
 
-
-const Spheres =
+const MAX_SPHERES = 20;
+let RenderSpheres =
 [
- //	x,y,z,rad,	r,g,b,emission,	shiny,?,?,?	?,?,?,?
- [ 0,0,0,1,		1,0,0,0,		1,0,0,0,	0,0,0,0 ],
+ [-1,0,-1,0.4,	1,0,0,0,	1,0,0,0,	0,0,0,0	],
+ [0,0,-1,0.2,	1,0,0,0,	1,0,0,0	],
+	[1,0,-1,0.2,	1,0,0,0,	1,0,0,0	],
+ []
 ];
 
+function PadArray(Array,Size)
+{
+	for ( let i=Array.length;	i<Size;	i++ )
+		Array[i] = 0;
+}
+
+function UnrollArray16s(Arrays,MaxLength)
+{
+	let Elements = [];
+	let Append = function(SubArray)
+	{
+		//Pop.Debug("SubArray", typeof SubArray, SubArray.length);
+		PadArray( SubArray, 16 );
+		Elements = Elements.concat( SubArray );
+	}
+	//Pop.Debug("Arrays", Array.isArray(Arrays) );
+	Arrays.forEach( Append );
+	//Pop.Debug("Elements",Elements.length, Elements);
+	Elements.length = Math.min( MaxLength, Elements.length );
+	return Elements;
+}
 
 let Camera = {};
-Camera.Position = [ 0,1.0,3 ];
+Camera.Position = [ 0, 0.09, 0.2 ];
 Camera.LookAt = [ 0,0,0 ];
 Camera.Aperture = 0.1;
 Camera.LowerLeftCorner = [0,0,0];
-Camera.DistToFocus = 1;
+Camera.DistToFocus = 1.0;
 Camera.Horizontal = [0,0,0];
 Camera.Vertical = [0,0,0];
 Camera.LensRadius = 1;
@@ -169,6 +194,9 @@ function Render(RenderTarget)
 {
 	UpdateCamera(RenderTarget);
 	
+	const Viewport = RenderTarget.GetScreenRect();
+	//const CameraProjectionMatrix = Camera.GetProjectionMatrix(Viewport);
+	
 	let WindowSize = [ RenderTarget.GetWidth(), RenderTarget.GetHeight() ];
 	let RandomSeed = 0;
 	let Shader = Pop.GetShader( RenderTarget, PathTraceShader );
@@ -184,12 +212,121 @@ function Render(RenderTarget)
 		Shader.SetUniform('window_size', WindowSize );
 		Shader.SetUniform('random_seed', RandomSeed );
 		Shader.SetUniform('Time', Time);
-		//Shader.SetUniform('Spheres',Spheres);
+		Shader.SetUniform('Spheres',UnrollArray16s(RenderSpheres,16*MAX_SPHERES));
+		//Shader.SetUniform('CameraProjectionMatrix',CameraProjectionMatrix);
+		Shader.SetUniform('CameraWorldPos',Camera.Position);
 	};
 	RenderTarget.DrawQuad( Shader, SetUniforms );
 }
 
 let Window = new Pop.Opengl.Window("Shiny");
 Window.OnRender = Render;
-Window.OnMouseMove = function(){};
+
+Window.OnMouseDown = function(x,y,Button)
+{
+	if ( Button == 0 )
+		Camera.OnCameraPan( x, y, true );
+	if ( Button == 1 )
+		Camera.OnCameraZoom( x, y, true );
+}
+
+Window.OnMouseMove = function(x,y,Button)
+{
+	if ( Button == 0 )
+		Camera.OnCameraPan( x, y, false );
+	if ( Button == 1 )
+		Camera.OnCameraZoom( x, y, false );
+};
+
+
+function GetCubePositionsFromLeapFrame(Frame)
+{
+	let Positions = [];
+	
+	let EnumHand = function(Hand)
+	{
+		if ( !Hand )
+			return;
+		
+		let EnumJoint = function(JointName)
+		{
+			//	skip over non-positions
+			const xyz = Hand[JointName];
+			if ( !Array.isArray(xyz) && xyz.constructor != Float32Array )
+				return;
+			
+			let JointFilter =
+			[
+			 /*'Thumb0',*/'Middle0','Ring0','Pinky0','Index0',
+			 'Thumb1','Middle1','Ring1','Pinky1','Index1',
+			 'Thumb2','Middle2','Ring2','Pinky2','Index2',
+			 'Thumb3','Middle3','Ring3','Pinky3','Index3',
+			 ];
+			if ( !JointFilter.includes(JointName) )
+				return;
+			
+			//Pop.Debug(JointName);
+			//	gr: engine doesnt take Float32Array??
+			Positions.push( Array.from(xyz) );
+		}
+		let Joints = Object.keys(Hand);
+		Joints.forEach( EnumJoint );
+	}
+	EnumHand( Frame.Left );
+	EnumHand( Frame.Right );
+	//Pop.Debug("Got positions x",Positions.length,Positions[0]);
+	return Positions;
+}
+
+function OnLeapFrame(Frame)
+{
+	let Positions = GetCubePositionsFromLeapFrame(Frame);
+	if ( Positions.length == 0 )
+	{
+		Pop.Debug("no positions");
+		return;
+	}
+
+	let Radiuses = [ 0.01, 0.02, 0.02, 0.04 ];
+	
+	RenderSpheres = [];
+	let PushSphere = function(xyz)
+	{
+		let Radius = 0.01;
+		xyz[1] -= 0.1;
+		xyz.push(Radius);
+		RenderSpheres.push( xyz );
+	}
+	Positions.forEach( PushSphere );
+}
+
+async function LeapMotionLoop()
+{
+	let Leap = null;
+	let FrameCounter = new Pop.FrameCounter("Leap Motion");
+	while ( true )
+	{
+		try
+		{
+			if ( !Leap )
+			{
+				//	gr: todo: turn this into an "xr" device
+				//			new Pop.Xr.Input("LeapMotion")
+				Leap = new Pop.LeapMotion.Input();
+			}
+			
+			const NextFrame = await Leap.GetNextFrame();
+			OnLeapFrame(NextFrame);
+			FrameCounter.Add();
+			//Pop.Debug("New leap motion frame",JSON.stringify(NextFrame) );
+		}
+		catch(e)
+		{
+			Pop.Debug("Leap error",e);
+			Leap = null;
+			await Pop.Yield(100);
+		}
+	}
+}
+LeapMotionLoop().then(Pop.Debug).catch(Pop.Debug);
 

@@ -12,8 +12,9 @@ void main()
 */
 
 #define M_PI 3.1415926535897932384626433832795
-#define BOUNCES	8
-#define SAMPLES 4
+#define BOUNCES	4
+#define SAMPLES 5
+#define MAX_SPHERES	20
 
 uniform vec2 window_size;
 uniform float random_seed;
@@ -54,19 +55,29 @@ struct HitRecord {
 	vec3 normal;
 	Material mat;
 };
-
+/*
 struct Sphere {
 	vec3 center;
 	float radius;
 	Material mat;
 };
-
+*/
 Material floor_Material = Material(vec3(0.09, 0.39,0.68), 0, 0.0, mat_lambert);
 Material gray_metal = Material(vec3(0.6, 0.6, 0.8), 0.0001, 0.0, mat_metal);
 Material gold_metal = Material(vec3(0.8, 0.6, 0.2), 0.0001, 0.0, mat_metal);
 Material dielectric = Material(vec3(0),                0.0, 1.5, mat_dielectric);
 Material lambert    = Material(vec3(0.8, 0.8, 0.0),    0.0, 0.0, mat_lambert);
 
+uniform float FloorY = 0.0;
+
+uniform mat4 Spheres[MAX_SPHERES];
+/*
+uniform mat4 Spheres[MAX_SPHERES] = mat4[MAX_SPHERES]
+(
+ mat4(	vec4(0,0,-1,0.1),	vec4(1,0,0,0),	vec4(0,0,0,0),	vec4(0,0,0,0)	)
+);
+*/
+/*
 Sphere world[] = Sphere[](
 						  Sphere(vec3(1,0,-1), 0.5, gray_metal),
 						  Sphere(vec3(-1,0,-1), 0.5, gold_metal)
@@ -74,6 +85,7 @@ Sphere world[] = Sphere[](
 						  //Sphere(vec3(0,0,1), -0.45, dielectric),
 						  //  Sphere(vec3(0,-100.5,-1), 100, lambert)
 						  );
+*/
 
 /* returns a varying number between 0 and 1 */
 float drand48(vec2 co)
@@ -193,28 +205,48 @@ vec3 point_at_parameter(Ray r,float t) {
 	return r.origin + t * r.direction;
 }
 
+vec3 GetSphereCenter(mat4 Sphere)
+{
+	return Sphere[0].xyz;
+}
+
+float GetSphereRadius(mat4 Sphere)
+{
+	return Sphere[0].w;
+}
+
+Material GetSphereMaterial(mat4 Sphere)
+{
+	return gold_metal;
+}
+
 /* Check hit between sphere and ray */
-bool sphere_hit(Sphere sp, Ray r, float t_min, float t_max, out HitRecord hit) {
-	vec3 oc = r.origin - sp.center;
+bool sphere_hit(mat4 Sphere, Ray r, float t_min, float t_max, out HitRecord hit)
+{
+	vec3 SphereCenter = GetSphereCenter(Sphere);
+	float SphereRadius = GetSphereRadius(Sphere);
+	Material SphereMaterial = GetSphereMaterial(Sphere);
+	
+	vec3 oc = r.origin - SphereCenter;
 	float a = dot(r.direction, r.direction);
 	float b = dot(oc, r.direction);
-	float c = dot(oc, oc) - sp.radius * sp.radius;
+	float c = dot(oc, oc) - SphereRadius * SphereRadius;
 	float discriminant = b*b - a*c;
 	if (discriminant > 0) {
 		float temp = (-b - sqrt(b*b-a*c)) /a;
 		if (temp < t_max && temp > t_min) {
 			hit.t = temp;
 			hit.p = point_at_parameter(r, hit.t);
-			hit.normal = (hit.p - sp.center) / sp.radius;
-			hit.mat = sp.mat;
+			hit.normal = (hit.p - SphereCenter) / SphereRadius;
+			hit.mat = SphereMaterial;
 			return true;
 		}
 		temp = (-b + sqrt(b*b-a*c)) /a;
 		if (temp < t_max && temp > t_min) {
 			hit.t = temp;
 			hit.p = point_at_parameter(r, hit.t);
-			hit.normal = (hit.p - sp.center) / sp.radius;
-			hit.mat = sp.mat;
+			hit.normal = (hit.p - SphereCenter) / SphereRadius;
+			hit.mat = SphereMaterial;
 			return true;
 		}
 	}
@@ -222,7 +254,7 @@ bool sphere_hit(Sphere sp, Ray r, float t_min, float t_max, out HitRecord hit) {
 }
 
 bool plane_hit(Ray r, float t_min, float t_max, out HitRecord hit) {
-	float t = (-0.5 - r.origin.y) / r.direction.y;
+	float t = (-FloorY - r.origin.y) / r.direction.y;
 	if (t < t_min || t > t_max) return false;
 	hit.t = t;
 	hit.p = point_at_parameter(r, t);
@@ -238,9 +270,9 @@ bool world_hit(Ray r, float t_min, float t_max, out HitRecord hit)
 	bool hit_anything = false;
 	float closest_so_far = t_max;
 	
-	for (int i = 0; i < world.length(); i++)
+	for (int i = 0; i <MAX_SPHERES; i++)
 	{
-		if (sphere_hit(world[i], r, t_min, closest_so_far, temp_hit))
+		if (sphere_hit(Spheres[i], r, t_min, closest_so_far, temp_hit))
 		{
 			hit_anything = true;
 			hit = temp_hit;
@@ -325,8 +357,8 @@ void main()
 	for (int s = 0; s < nsamples; s++)
 	{
 		float2 Noise;
-		Noise.x = s+Time;
-		Noise.y = s+Time;
+		Noise.x = s;
+		Noise.y = s;
 		Noise.x = drand48( col.xy + Noise );
 		Noise.y = drand48( col.xz + Noise );
 		Noise -= 0.5;
