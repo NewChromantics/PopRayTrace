@@ -13,12 +13,9 @@ const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
 Pop.Include('PopShaderCache.js');
 Pop.Include('PopEngineCommon/PopFrameCounter.js');
 Pop.Include('PopEngineCommon/PopCamera.js');
+Pop.Include('PopXrInputLeapMotion.js');
 
 const MAX_SPHERES = 19;
-let RenderSpheres =
-[
-	[0,0,0,0.05,	1,0,0,0,	],
-];
 
 function PadArray(Array,Size)
 {
@@ -43,7 +40,7 @@ function UnrollArray16s(Arrays,MaxLength)
 }
 
 let Camera = new Pop.Camera();
-Camera.Position = [ 0, 0.09, 0.2 ];
+Camera.Position = [ 0, 0.09, 0.3 ];
 Camera.LookAt = [ 0,0,0 ];
 Camera.Aperture = 0.1;
 Camera.LowerLeftCorner = [0,0,0];
@@ -51,7 +48,7 @@ Camera.DistToFocus = 0.2;
 Camera.Horizontal = [0,0,0];
 Camera.Vertical = [0,0,0];
 Camera.LensRadius = 1;
-Camera.Aperture = 0.0015;
+Camera.Aperture = 0.00015;
 
 
 function vec3_length(v)
@@ -186,6 +183,37 @@ function UpdateCamera(RenderTarget)
 	camera_pos( Camera, Up, VerticalFieldOfView, Aspect, Camera.DistToFocus );
 }
 
+let LeapLeft = new Pop.Xr.InputLeapMotion("Left");
+let LeapRight = new Pop.Xr.InputLeapMotion("Right");
+
+
+function GetRenderSpheres()
+{
+	let RenderSpheres = [];
+	let AppendController = function(XrState,Radius,Colour)
+	{
+		let AppendButton = function(xyz)
+		{
+			if ( !xyz )
+				return;
+			let xyzrcolour = [];
+			xyzrcolour = xyzrcolour.concat( xyz );
+			xyzrcolour.push( Radius );
+			xyzrcolour = xyzrcolour.concat( Colour );
+			RenderSpheres.push( xyzrcolour );
+		}
+		XrState.ButtonPositions.forEach( AppendButton );
+	}
+	
+	let LeftState = LeapLeft.GetControllerState();
+	let RightState = LeapRight.GetControllerState();
+	let Radius = 0.01;
+	AppendController( LeftState, Radius, [0,1,0] );
+	AppendController( RightState, Radius, [1,1,1] );
+	
+	return RenderSpheres;
+}
+
 
 function Render(RenderTarget)
 {
@@ -199,6 +227,9 @@ function Render(RenderTarget)
 	let Shader = Pop.GetShader( RenderTarget, PathTraceShader );
 	let Time = (Pop.GetTimeNowMs() % 1000) / 1000;
 	
+	let RenderSpheres = GetRenderSpheres();
+	RenderSpheres = UnrollArray16s(RenderSpheres,16*MAX_SPHERES)
+	
 	let SetUniforms = function(Shader)
 	{
 		Shader.SetUniform('camera_origin', Camera.Position );
@@ -209,7 +240,7 @@ function Render(RenderTarget)
 		Shader.SetUniform('window_size', WindowSize );
 		Shader.SetUniform('random_seed', RandomSeed );
 		Shader.SetUniform('Time', Time);
-		Shader.SetUniform('Spheres',UnrollArray16s(RenderSpheres,16*MAX_SPHERES));
+		Shader.SetUniform('Spheres',RenderSpheres);
 		//Shader.SetUniform('CameraProjectionMatrix',CameraProjectionMatrix);
 		Shader.SetUniform('CameraWorldPos',Camera.Position);
 	};
@@ -235,7 +266,7 @@ Window.OnMouseMove = function(x,y,Button)
 		Camera.OnCameraZoom( x, y, false );
 };
 
-
+/*
 function GetCubePositionsFromLeapFrame(Frame)
 {
 	let Positions = [];
@@ -254,7 +285,7 @@ function GetCubePositionsFromLeapFrame(Frame)
 			
 			let JointFilter =
 			[
-			 /*'Thumb0',*/'Middle0','Ring0','Pinky0','Index0',
+			 'Thumb0','Middle0','Ring0','Pinky0','Index0',
 			 'Thumb1','Middle1','Ring1','Pinky1','Index1',
 			 'Thumb2','Middle2','Ring2','Pinky2','Index2',
 			 'Thumb3','Middle3','Ring3','Pinky3','Index3',
@@ -301,6 +332,9 @@ function OnLeapFrame(Frame)
 	Positions.forEach( PushSphere );
 }
 
+
+
+
 async function LeapMotionLoop()
 {
 	let Leap = null;
@@ -330,4 +364,5 @@ async function LeapMotionLoop()
 	}
 }
 LeapMotionLoop().then(Pop.Debug).catch(Pop.Debug);
+*/
 

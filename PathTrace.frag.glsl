@@ -13,7 +13,7 @@ void main()
 
 #define M_PI 3.1415926535897932384626433832795
 #define BOUNCES	3
-#define SAMPLES 7
+#define SAMPLES 5
 #define MAX_SPHERES	19
 
 uniform vec2 window_size;
@@ -62,11 +62,14 @@ struct Sphere {
 	Material mat;
 };
 */
-Material floor_Material = Material(vec3(0.09, 0.39,0.68), 0, 0.0, mat_lambert);
+Material floor_Material = Material(vec3(0.2, 0.4,0.8), 0, 0.0, mat_lambert);
 Material gray_metal = Material(vec3(0.6, 0.6, 0.8), 0.0001, 0.0, mat_metal);
 Material gold_metal = Material(vec3(0.8, 0.6, 0.2), 0.0001, 0.0, mat_metal);
 Material dielectric = Material(vec3(0),                0.0, 1.5, mat_dielectric);
 Material lambert    = Material(vec3(0.8, 0.8, 0.0),    0.0, 0.0, mat_lambert);
+
+uniform bool Sky_SpotLight = true;
+uniform vec3 Sky_LightColour = vec3(0.9,0.7,0.6);
 
 uniform float FloorY = 0.0;
 
@@ -326,11 +329,9 @@ vec3 color(Ray r)
 			// background hit (light source)
 			vec3 unit_dir = normalize(r.direction);
 			float t = 0.5 * (unit_dir.y + 1.0);
-			bool SpotLight = false;
-			if ( !SpotLight )
+			if ( !Sky_SpotLight )
 				t = 1.0;
-			vec3 LightColour = vec3(0.5,0.7,1.0);
-			vec3 BlendedColour = ((1.0-t)*vec3(1.0,1.0,1.0)+t*LightColour);
+			vec3 BlendedColour = ((1.0-t)*vec3(1.0,1.0,1.0)+t*Sky_LightColour);
 			col = total_attenuation * BlendedColour;
 			break;
 		}
