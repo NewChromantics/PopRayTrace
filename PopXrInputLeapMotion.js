@@ -72,6 +72,7 @@ Pop.Xr.InputLeapMotion = function(DeviceName)
 		LeapMotionContext = new TLeapMotionContext();
 
 	this.LastState = null;	//	TXrInputState
+	this.FingerClickDistance = 0.04;
 	
 	this.OnFrame = function(Frame)
 	{
@@ -88,27 +89,46 @@ Pop.Xr.InputLeapMotion = function(DeviceName)
 		let State = new TXrInputState();
 		State.Tracking = true;
 		
-		let AddButton = function(JointName)
+		let FingerClickDistance = this.FingerClickDistance;
+		let IsButtonPressed = function(ThumbJoint,FingerJoint)
 		{
+			let Thumb3 = Hand[ThumbJoint];
+			let Finger3 = Hand[FingerJoint];
+			if ( !Thumb3 || !Finger3 )
+				return false;
+			
+			let Distance = Math.Distance3( Thumb3, Finger3 );
+			//Pop.Debug("Distance:",Distance, FingerClickDistance);
+			if ( Distance > FingerClickDistance )
+				return false;
+			return true;
+		}
+		
+		let AddButton = function(JointName,ButtonIndex,Pressed)
+		{
+			Pressed = Pressed === true;
+			if ( ButtonIndex !== undefined )
+				State.ButtonState[ButtonIndex] = Pressed;
+			
 			let Joint = Hand[JointName];
 			if ( Joint === undefined )
 			{
 				State.ButtonPositions.push( null );
-				Pop.Debug( JSON.stringify(Hand) );
+				//Pop.Debug( JSON.stringify(Hand) );
 				return;
 			}
-			Pop.Debug( JointName, JSON.stringify(Joint) );
+			//Pop.Debug( JointName, JSON.stringify(Joint) );
 			
 			//	lower y
 			Joint[1] -= 0.1;
 			State.ButtonPositions.push( Array.from(Joint) );
 		}
+		AddButton('Index3', 0, IsButtonPressed('Thumb3','Index3') );
+		AddButton('Middle3', 1, IsButtonPressed('Thumb3','Middle3')) ;
+		AddButton('Ring3', 2, IsButtonPressed('Thumb3','Ring3') );
+		AddButton('Pinky3', 3, IsButtonPressed('Thumb3','Pinky3') );
 		AddButton('Thumb3');
-		AddButton('Middle3');
-		AddButton('Index3');
-		AddButton('Ring3');
-		AddButton('Pinky3');
-	
+
 		//	calc button press (pinch of fingers)
 		this.LastState = State;
 	}

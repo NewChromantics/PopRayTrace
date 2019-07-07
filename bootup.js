@@ -13,9 +13,10 @@ const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
 Pop.Include('PopShaderCache.js');
 Pop.Include('PopEngineCommon/PopFrameCounter.js');
 Pop.Include('PopEngineCommon/PopCamera.js');
+Pop.Include('PopEngineCommon/PopMath.js');
 Pop.Include('PopXrInputLeapMotion.js');
 
-const MAX_SPHERES = 19;
+const MAX_SPHERES = 12;
 
 function PadArray(Array,Size)
 {
@@ -192,14 +193,26 @@ function GetRenderSpheres()
 	let RenderSpheres = [];
 	let AppendController = function(XrState,Radius,Colour)
 	{
-		let AppendButton = function(xyz)
+		let ClickColours =
+		[
+		 [1,0,0],
+		 [0,1,0],
+		 [1,1,0],
+		 [1,0,1],
+		 ];
+		let AppendButton = function(xyz,ButtonIndex)
 		{
 			if ( !xyz )
 				return;
+			let Pressed = XrState.ButtonState[ButtonIndex];
+			let SphereColour = Colour;
+			if ( Pressed === true )
+				SphereColour = ClickColours[ButtonIndex];
+			
 			let xyzrcolour = [];
 			xyzrcolour = xyzrcolour.concat( xyz );
 			xyzrcolour.push( Radius );
-			xyzrcolour = xyzrcolour.concat( Colour );
+			xyzrcolour = xyzrcolour.concat( SphereColour );
 			RenderSpheres.push( xyzrcolour );
 		}
 		XrState.ButtonPositions.forEach( AppendButton );
@@ -208,8 +221,9 @@ function GetRenderSpheres()
 	let LeftState = LeapLeft.GetControllerState();
 	let RightState = LeapRight.GetControllerState();
 	let Radius = 0.01;
-	AppendController( LeftState, Radius, [0,1,0] );
-	AppendController( RightState, Radius, [1,1,1] );
+	let OffColour = [0.8,0.8,0.8];
+	AppendController( LeftState, Radius, OffColour );
+	AppendController( RightState, Radius, OffColour);
 	
 	return RenderSpheres;
 }
@@ -220,7 +234,7 @@ function Render(RenderTarget)
 	UpdateCamera(RenderTarget);
 	
 	const Viewport = RenderTarget.GetScreenRect();
-	//const CameraProjectionMatrix = Camera.GetProjectionMatrix(Viewport);
+	const CameraProjectionMatrix = Camera.GetProjectionMatrix(Viewport);
 	
 	let WindowSize = [ RenderTarget.GetWidth(), RenderTarget.GetHeight() ];
 	let RandomSeed = 0;
@@ -232,7 +246,6 @@ function Render(RenderTarget)
 	
 	let SetUniforms = function(Shader)
 	{
-		Shader.SetUniform('camera_origin', Camera.Position );
 		Shader.SetUniform('camera_lower_left_corner', Camera.LowerLeftCorner );
 		Shader.SetUniform('camera_horizontal', Camera.Horizontal );
 		Shader.SetUniform('camera_vertical', Camera.Vertical );
@@ -265,104 +278,4 @@ Window.OnMouseMove = function(x,y,Button)
 	if ( Button == 1 )
 		Camera.OnCameraZoom( x, y, false );
 };
-
-/*
-function GetCubePositionsFromLeapFrame(Frame)
-{
-	let Positions = [];
-	
-	let EnumHand = function(Hand)
-	{
-		if ( !Hand )
-			return;
-		
-		let EnumJoint = function(JointName)
-		{
-			//	skip over non-positions
-			const xyz = Hand[JointName];
-			if ( !Array.isArray(xyz) && xyz.constructor != Float32Array )
-				return;
-			
-			let JointFilter =
-			[
-			 'Thumb0','Middle0','Ring0','Pinky0','Index0',
-			 'Thumb1','Middle1','Ring1','Pinky1','Index1',
-			 'Thumb2','Middle2','Ring2','Pinky2','Index2',
-			 'Thumb3','Middle3','Ring3','Pinky3','Index3',
-			 ];
-			if ( !JointFilter.includes(JointName) )
-				return;
-			
-			//Pop.Debug(JointName);
-			//	gr: engine doesnt take Float32Array??
-			Positions.push( Array.from(xyz) );
-		}
-		let Joints = Object.keys(Hand);
-		Joints.forEach( EnumJoint );
-	}
-	EnumHand( Frame.Left );
-	EnumHand( Frame.Right );
-	//Pop.Debug("Got positions x",Positions.length,Positions[0]);
-	return Positions;
-}
-
-function OnLeapFrame(Frame)
-{
-	let Positions = GetCubePositionsFromLeapFrame(Frame);
-	if ( Positions.length == 0 )
-	{
-		Pop.Debug("no positions");
-		return;
-	}
-
-	let Radiuses = [ 0.01, 0.02, 0.02, 0.04 ];
-	
-	RenderSpheres = [];
-	let PushSphere = function(xyz)
-	{
-		let Radius = 0.01;
-		xyz[1] -= 0.1;
-		xyz.push(Radius);
-		
-		let Colour = [1,1,1];
-		xyz = xyz.concat( Colour );
-		
-		RenderSpheres.push( xyz );
-	}
-	Positions.forEach( PushSphere );
-}
-
-
-
-
-async function LeapMotionLoop()
-{
-	let Leap = null;
-	let FrameCounter = new Pop.FrameCounter("Leap Motion");
-	while ( true )
-	{
-		try
-		{
-			if ( !Leap )
-			{
-				//	gr: todo: turn this into an "xr" device
-				//			new Pop.Xr.Input("LeapMotion")
-				Leap = new Pop.LeapMotion.Input();
-			}
-			
-			const NextFrame = await Leap.GetNextFrame();
-			OnLeapFrame(NextFrame);
-			FrameCounter.Add();
-			//Pop.Debug("New leap motion frame",JSON.stringify(NextFrame) );
-		}
-		catch(e)
-		{
-			Pop.Debug("Leap error",e);
-			Leap = null;
-			await Pop.Yield(100);
-		}
-	}
-}
-LeapMotionLoop().then(Pop.Debug).catch(Pop.Debug);
-*/
 

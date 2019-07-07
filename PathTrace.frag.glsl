@@ -12,15 +12,15 @@ void main()
 */
 
 #define M_PI 3.1415926535897932384626433832795
-#define BOUNCES	3
-#define SAMPLES 5
-#define MAX_SPHERES	19
+#define BOUNCES	4
+#define SAMPLES 6
+#define MAX_SPHERES	12
 
 uniform vec2 window_size;
 uniform float random_seed;
 
 /* camera attributes are provided by application */
-uniform vec3 camera_origin;
+uniform vec3 CameraWorldPos;
 uniform vec3 camera_lower_left_corner;
 uniform vec3 camera_horizontal;
 uniform vec3 camera_vertical;
@@ -201,7 +201,7 @@ Ray get_ray(float s, float t)
 	vec3 rd = camera_lens_radius * random_in_unit_disk(vec2(s,t));
 	//vec3 rd = vec3(s,t,0);
 	vec3 offset = vec3(s * rd.x, t * rd.y, 0);
-	return Ray(camera_origin + offset, camera_lower_left_corner + s * camera_horizontal + t * camera_vertical - camera_origin - offset);
+	return Ray(CameraWorldPos + offset, camera_lower_left_corner + s * camera_horizontal + t * camera_vertical - CameraWorldPos - offset);
 }
 
 vec3 point_at_parameter(Ray r,float t) {
