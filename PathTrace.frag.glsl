@@ -12,8 +12,8 @@ void main()
 */
 
 #define M_PI 3.1415926535897932384626433832795
-#define BOUNCES	4
-#define SAMPLES 6
+#define BOUNCES	3
+#define SAMPLES 7
 #define MAX_SPHERES	19
 
 uniform vec2 window_size;
@@ -215,9 +215,17 @@ float GetSphereRadius(mat4 Sphere)
 	return Sphere[0].w;
 }
 
+float3 GetSphereDiffuse(mat4 Sphere)
+{
+	return Sphere[1].xyz;
+}
+
 Material GetSphereMaterial(mat4 Sphere)
 {
-	return gold_metal;
+	float3 Diffuse = GetSphereDiffuse(Sphere);
+	Material mat = gold_metal;
+	mat.albedo = Diffuse;
+	return mat;
 }
 
 /* Check hit between sphere and ray */

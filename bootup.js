@@ -17,10 +17,7 @@ Pop.Include('PopEngineCommon/PopCamera.js');
 const MAX_SPHERES = 19;
 let RenderSpheres =
 [
- [-1,0,-1,0.4,	1,0,0,0,	1,0,0,0,	0,0,0,0	],
- [0,0,-1,0.2,	1,0,0,0,	1,0,0,0	],
-	[1,0,-1,0.2,	1,0,0,0,	1,0,0,0	],
- []
+	[0,0,0,0.05,	1,0,0,0,	],
 ];
 
 function PadArray(Array,Size)
@@ -50,11 +47,11 @@ Camera.Position = [ 0, 0.09, 0.2 ];
 Camera.LookAt = [ 0,0,0 ];
 Camera.Aperture = 0.1;
 Camera.LowerLeftCorner = [0,0,0];
-Camera.DistToFocus = 1.0;
+Camera.DistToFocus = 0.2;
 Camera.Horizontal = [0,0,0];
 Camera.Vertical = [0,0,0];
 Camera.LensRadius = 1;
-Camera.Aperture = 0.015;
+Camera.Aperture = 0.0015;
 
 
 function vec3_length(v)
@@ -295,6 +292,10 @@ function OnLeapFrame(Frame)
 		let Radius = 0.01;
 		xyz[1] -= 0.1;
 		xyz.push(Radius);
+		
+		let Colour = [1,1,1];
+		xyz = xyz.concat( Colour );
+		
 		RenderSpheres.push( xyz );
 	}
 	Positions.forEach( PushSphere );
