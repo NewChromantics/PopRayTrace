@@ -184,9 +184,49 @@ function UpdateCamera(RenderTarget)
 	camera_pos( Camera, Up, VerticalFieldOfView, Aspect, Camera.DistToFocus );
 }
 
+
+function TPhysicsBody()
+{
+	//	turn this into a list of verlets
+	//	and a seperate center of mass
+	this.Position = [0,0,0];
+	
+	//	this!=undefined makes it a sphere
+	this.SphereRadius = 1;
+	
+	this.GetSphere = function()
+	{
+		return this.Position.concat( [this.SphereRadius] );
+	}
+}
+
+function TActor_Box()
+{
+	this.PhysicsBody = new TPhysicsBody();
+	this.PhysicsBody.SphereRadius = 0.05;
+	
+	//	move to physics as a joint
+	this.GrabPoint = null;
+	
+	this.GetPosition = function()			{	return this.PhysicsBody.Position.slice();	}
+	this.SetPosition = function(Position)	{	this.PhysicsBody.Position = Position.slice(0,3);	}
+	this.GetSphere = function()				{	return this.PhysicsBody.GetSphere();	}
+
+	this.GetRenderSphere = function()
+	{
+		let Sphere = this.GetSphere();
+		let Colour = this.GrabPoint ? [0,0.8,1] : [0.2,0.2,0.2];
+		Sphere = Sphere.concat( Colour );
+		return Sphere;
+	}
+}
+
+
+
 let LeapLeft = new Pop.Xr.InputLeapMotion("Left");
 let LeapRight = new Pop.Xr.InputLeapMotion("Right");
-
+const LeapControllerButtonRadius = 0.01;
+let Box = new TActor_Box();
 
 function GetRenderSpheres()
 {
@@ -195,10 +235,10 @@ function GetRenderSpheres()
 	{
 		let ClickColours =
 		[
-		 [1,0,0],
-		 [0,1,0],
-		 [1,1,0],
 		 [1,0,1],
+		 [1,0,0],
+		 [1,1,0],
+		 [0,1,0],
 		 ];
 		let AppendButton = function(xyz,ButtonIndex)
 		{
@@ -218,12 +258,13 @@ function GetRenderSpheres()
 		XrState.ButtonPositions.forEach( AppendButton );
 	}
 	
+	RenderSpheres.push( Box.GetRenderSphere() );
+	
 	let LeftState = LeapLeft.GetControllerState();
 	let RightState = LeapRight.GetControllerState();
-	let Radius = 0.01;
 	let OffColour = [0.8,0.8,0.8];
-	AppendController( LeftState, Radius, OffColour );
-	AppendController( RightState, Radius, OffColour);
+	AppendController( LeftState, LeapControllerButtonRadius, OffColour );
+	AppendController( RightState, LeapControllerButtonRadius, OffColour);
 	
 	return RenderSpheres;
 }
@@ -236,7 +277,6 @@ function Render(RenderTarget)
 	const Viewport = RenderTarget.GetScreenRect();
 	const CameraProjectionMatrix = Camera.GetProjectionMatrix(Viewport);
 	
-	let WindowSize = [ RenderTarget.GetWidth(), RenderTarget.GetHeight() ];
 	let RandomSeed = 0;
 	let Shader = Pop.GetShader( RenderTarget, PathTraceShader );
 	let Time = (Pop.GetTimeNowMs() % 1000) / 1000;
@@ -250,7 +290,7 @@ function Render(RenderTarget)
 		Shader.SetUniform('camera_horizontal', Camera.Horizontal );
 		Shader.SetUniform('camera_vertical', Camera.Vertical );
 		Shader.SetUniform('camera_lens_radius', Camera.LensRadius );
-		Shader.SetUniform('window_size', WindowSize );
+		Shader.SetUniform('ViewportPx', Viewport );
 		Shader.SetUniform('random_seed', RandomSeed );
 		Shader.SetUniform('Time', Time);
 		Shader.SetUniform('Spheres',RenderSpheres);
@@ -279,3 +319,67 @@ Window.OnMouseMove = function(x,y,Button)
 		Camera.OnCameraZoom( x, y, false );
 };
 
+
+function UpdatePhysics()
+{
+	//	see if any clicking fingers intersect with the box
+	//	then drag
+	let Grabbed = false;
+	
+	let TestBoxVsController = function(Box,Controller)
+	{
+		let TestBoxVsButton = function(ButtonXyz,ButtonIndex)
+		{
+			let Pressed = Controller.ButtonState[ButtonIndex];
+			if ( !Pressed )
+				return;
+			
+			let Sphere = ButtonXyz.slice();
+			Sphere.push(LeapControllerButtonRadius);
+			let BoxSphere = Box.GetSphere();
+			
+			//	gr: allow intersection if we were previously grabbing!
+			let Intersection = Math.GetSphereSphereIntersection( Sphere, BoxSphere );
+			if ( !Intersection )
+				return;
+			
+			//	get intersection in local space
+			let BoxIntersectionPoint = Math.Subtract3( BoxSphere, Intersection );
+
+			if ( !Box.GrabPoint )
+			{
+				//	new grab
+				Box.GrabPoint = BoxIntersectionPoint;
+			}
+			else
+			{
+				//	update pos based on old point
+				let Diff = Math.Subtract3( Box.GrabPoint, BoxIntersectionPoint );
+				let NewPos = Math.Add3( BoxSphere, Diff );
+				Box.SetPosition( NewPos );
+			}
+			Grabbed = true;
+		}
+		Controller.ButtonPositions.forEach( TestBoxVsButton );
+	}
+	TestBoxVsController( Box, LeapLeft.GetControllerState() );
+	TestBoxVsController( Box, LeapRight.GetControllerState() );
+	
+	if ( !Grabbed )
+		Box.GrabPoint = null;
+}
+
+async function UpdateLoop()
+{
+	let UpdateCounter = new Pop.FrameCounter("Update");
+	while ( true )
+	{
+		let UpdateFps = 60;
+		let UpdateMs = 1000/UpdateFps;
+		await Pop.Yield(UpdateMs);
+		let UpdateStep = UpdateMs/1000;	//	gr: here we could do proper time-elapsed amount
+		UpdatePhysics( UpdateStep );
+		UpdateCounter.Add();
+	}
+}
+UpdateLoop().then(Pop.Debug).catch(Pop.Debug);

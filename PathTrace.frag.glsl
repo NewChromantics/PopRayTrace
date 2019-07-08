@@ -16,7 +16,7 @@ void main()
 #define SAMPLES 6
 #define MAX_SPHERES	12
 
-uniform vec2 window_size;
+uniform float4 ViewportPx;
 uniform float random_seed;
 
 /* camera attributes are provided by application */
@@ -371,7 +371,7 @@ void main()
 		Noise.x = drand48( col.xy + Noise );
 		Noise.y = drand48( col.xz + Noise );
 		Noise -= 0.5;
-		Noise /= window_size;
+		Noise /= ViewportPx.zw;
 		//Noise = vec2(0,0);
 		
 		float2 ScreenUv = uv + Noise;

@@ -14,7 +14,6 @@ let TLeapMotionContext = function()
 	
 	this.OnLeapFrame = function(Frame)
 	{
-		Pop.Debug("Keys: ", Object.keys(Frame) );
 		this.OnFrameCallbacks.forEach( Callback => Callback(Frame) );
 	}
 	
@@ -72,13 +71,12 @@ Pop.Xr.InputLeapMotion = function(DeviceName)
 		LeapMotionContext = new TLeapMotionContext();
 
 	this.LastState = null;	//	TXrInputState
-	this.FingerClickDistance = 0.04;
+	this.FingerClickDistance = 0.03;
 	
 	this.OnFrame = function(Frame)
 	{
 		if ( !Frame.hasOwnProperty(DeviceName) )
 		{
-			Pop.Debug("no " +DeviceName);
 			this.LastState = null;
 			return;
 		}
