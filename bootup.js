@@ -190,6 +190,8 @@ function TPhysicsBody()
 	//	turn this into a list of verlets
 	//	and a seperate center of mass
 	this.Position = [0,0,0];
+	this.Velocity = [0.2,0,0];
+	this.Drag = 0.9;
 	
 	//	this!=undefined makes it a sphere
 	this.SphereRadius = 1;
@@ -227,6 +229,13 @@ let LeapLeft = new Pop.Xr.InputLeapMotion("Left");
 let LeapRight = new Pop.Xr.InputLeapMotion("Right");
 const LeapControllerButtonRadius = 0.01;
 let Box = new TActor_Box();
+
+function GetPhysicsBodys()
+{
+	let Bodys = [];
+	Bodys.push( Box.PhysicsBody );
+	return Bodys;
+}
 
 function GetRenderSpheres()
 {
@@ -320,8 +329,48 @@ Window.OnMouseMove = function(x,y,Button)
 };
 
 
-function UpdatePhysics()
+
+function Physics_UpdateCollisions(Timestep)
 {
+	let Bodys = GetPhysicsBodys();
+	
+	let UpdateCollision = function(BodyA,BodyB)
+	{
+		
+	}
+	
+	for ( let a=0;	a<Bodys.length;	a++ )
+		for ( let b=a+1;	b<Bodys.length;	b++ )
+			UpdateCollision(BodyA,BodyB);
+}
+
+function Physics_UpdatePositions(Timestep)
+{
+	let Bodys = GetPhysicsBodys();
+	
+	let UpdateBody = function(Body)
+	{
+		//	this drag is too small!
+		//	need to do more like vel -= (drag*vel)*Step
+		let Drag = Math.Multiply3( [Body.Drag,Body.Drag,Body.Drag], [Timestep,Timestep,Timestep] );
+		let Vel = Math.Multiply3( Body.Velocity, [Timestep,Timestep,Timestep] );
+		let Pos = Math.Add3( Body.Position, Vel );
+
+		Drag[0] = 1-Drag[0];
+		Drag[1] = 1-Drag[1];
+		Drag[2] = 1-Drag[2];
+		Body.Velocity = Math.Multiply3( Body.Velocity, Drag );
+		Pop.Debug(Body.Velocity);
+		Body.Position = Pos;
+	}
+	Bodys.forEach( UpdateBody );
+}
+
+function UpdatePhysics(Timestep)
+{
+	Physics_UpdateCollisions( Timestep );
+	Physics_UpdatePositions( Timestep );
+	
 	//	see if any clicking fingers intersect with the box
 	//	then drag
 	let Grabbed = false;
