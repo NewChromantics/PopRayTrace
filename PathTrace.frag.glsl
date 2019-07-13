@@ -32,6 +32,7 @@ struct Ray {
 	vec3 direction;
 };
 
+const int mat_refract = 4;
 const int mat_dielectric = 3;
 const int mat_metal = 2;
 const int mat_lambert = 1;
@@ -74,21 +75,7 @@ uniform vec3 Sky_LightColour = vec3(0.9,0.7,0.6);
 uniform float FloorY = 0.0;
 
 uniform mat4 Spheres[MAX_SPHERES];
-/*
-uniform mat4 Spheres[MAX_SPHERES] = mat4[MAX_SPHERES]
-(
- mat4(	vec4(0,0,-1,0.1),	vec4(1,0,0,0),	vec4(0,0,0,0),	vec4(0,0,0,0)	)
-);
-*/
-/*
-Sphere world[] = Sphere[](
-						  Sphere(vec3(1,0,-1), 0.5, gray_metal),
-						  Sphere(vec3(-1,0,-1), 0.5, gold_metal)
-						  //  Sphere(vec3(0,0,1), 0.5, dielectric),
-						  //Sphere(vec3(0,0,1), -0.45, dielectric),
-						  //  Sphere(vec3(0,-100.5,-1), 100, lambert)
-						  );
-*/
+
 
 /* returns a varying number between 0 and 1 */
 float drand48(vec2 co)
@@ -110,7 +97,8 @@ float squared_length(vec3 v) {
 	return v.x*v.x + v.y*v.y + v.z*v.z;
 }
 
-vec3 random_in_unit_sphere(vec3 p) {
+vec3 random_in_unit_sphere(vec3 p)
+{
 	int n = 0;
 	do {
 		p = vec3(drand48(p.xy), drand48(p.zy), drand48(p.xz));
@@ -119,18 +107,45 @@ vec3 random_in_unit_sphere(vec3 p) {
 	return p;
 }
 
-bool lambertian_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered) {
+bool lambertian_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
+{
 	vec3 target = hit.p + hit.normal + random_in_unit_sphere(hit.p);
 	scattered = Ray(hit.p, target - hit.p);
 	attenuation = mat.albedo;
 	return true;
 }
-
-vec3 reflect(in vec3 v, in vec3 n) {
+/*
+vec3 reflect(in vec3 v, in vec3 n)
+{
 	return v - 2 * dot(v, n) * n;
 }
+*/
+bool RefractionScatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
+{
+	//	for glass, this needs to know how thick the surface of what we hit was, so we know where the "other side" of the hit is
+	//	and have the ray come out there
+	float RefractionScalar = 0.66;	//	for chromatic abberation, use r=0.65 g=0.66 b=0.67
+	vec3 reflected = refract( normalize(r.direction), normalize(hit.normal), RefractionScalar );
+	//vec3 reflected = reflect(normalize(r.direction), hit.normal);
+	//vec3 reflected = normalize(r.direction);
+	
+	//vec3 OtherSide = hit.p ;
+	vec3 OtherSide = hit.p + (r.direction*0.22);
+	//scattered = Ray(OtherSide, reflected + mat.fuzz * random_in_unit_sphere(hit.p));
+	scattered = Ray(OtherSide, reflected );
+	
+	//	gr: this attenuation is where we can add chromatic abberation...
+	//		kinda need to spawn 3 rays out
+	attenuation = mat.albedo;
+	//attenuation = vec3(1,1,1);
+	
+	//	allow odd direction
+	//return (dot(scattered.direction, hit.normal) > 0);
+	return true;
+}
 
-bool metal_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered) {
+bool metal_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
+{
 	vec3 reflected = reflect(normalize(r.direction), hit.normal);
 	scattered = Ray(hit.p, reflected + mat.fuzz * random_in_unit_sphere(hit.p));
 	attenuation = mat.albedo;
@@ -186,12 +201,22 @@ bool dielectric_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 at
 	return true;
 }
 
-bool dispatch_scatter(in Ray r, HitRecord hit, out vec3 attenuation, out Ray scattered) {
-	if(hit.mat.scatter_function == mat_dielectric) {
+bool dispatch_scatter(in Ray r, HitRecord hit, out vec3 attenuation, out Ray scattered)
+{
+	if(hit.mat.scatter_function == mat_dielectric)
+	{
 		return dielectric_scatter(hit.mat, r, hit, attenuation, scattered);
-	} else if (hit.mat.scatter_function == mat_metal) {
+	}
+	else if (hit.mat.scatter_function == mat_metal)
+	{
 		return metal_scatter(hit.mat, r, hit, attenuation, scattered);
-	} else {
+	}
+	else if (hit.mat.scatter_function == mat_refract)
+	{
+		return RefractionScatter(hit.mat, r, hit, attenuation, scattered);
+	}
+	else
+	{
 		return lambertian_scatter(hit.mat, r, hit, attenuation, scattered);
 	}
 }
@@ -223,11 +248,20 @@ float3 GetSphereDiffuse(mat4 Sphere)
 	return Sphere[1].xyz;
 }
 
+bool GetSphereGlass(mat4 Sphere)
+{
+	return Sphere[1].w > 0.5;
+}
+
 Material GetSphereMaterial(mat4 Sphere)
 {
+	bool IsGlass = GetSphereGlass(Sphere);
 	float3 Diffuse = GetSphereDiffuse(Sphere);
 	Material mat = gold_metal;
 	mat.albedo = Diffuse;
+	//mat.scatter_function = mat_dielectric;
+	mat.scatter_function = IsGlass ? mat_refract : mat_metal;
+	//mat.fuzz = 0.5;
 	return mat;
 }
 
@@ -321,7 +355,7 @@ vec3 color(Ray r)
 			}
 			else
 			{
-				total_attenuation *= vec3(0,0,0);
+				//total_attenuation *= vec3(0,0,0);
 			}
 		}
 		else

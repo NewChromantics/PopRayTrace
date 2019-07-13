@@ -190,7 +190,7 @@ function TPhysicsBody()
 	//	turn this into a list of verlets
 	//	and a seperate center of mass
 	this.Position = [0,0,0];
-	this.Velocity = [0.2,0,0];
+	this.Velocity = [0.1,0,0];
 	this.Drag = 0.9;
 	
 	//	this!=undefined makes it a sphere
@@ -216,9 +216,11 @@ function TActor_Box()
 
 	this.GetRenderSphere = function()
 	{
+		let Glass = 1;
 		let Sphere = this.GetSphere();
 		let Colour = this.GrabPoint ? [0,0.8,1] : [0.2,0.2,0.2];
 		Sphere = Sphere.concat( Colour );
+		Sphere.push(Glass);
 		return Sphere;
 	}
 }
@@ -271,7 +273,8 @@ function GetRenderSpheres()
 	
 	let LeftState = LeapLeft.GetControllerState();
 	let RightState = LeapRight.GetControllerState();
-	let OffColour = [0.8,0.8,0.8];
+	let Glass = 0;
+	let OffColour = [0.8,0.8,0.8,Glass];
 	AppendController( LeftState, LeapControllerButtonRadius, OffColour );
 	AppendController( RightState, LeapControllerButtonRadius, OffColour);
 	
@@ -360,7 +363,7 @@ function Physics_UpdatePositions(Timestep)
 		Drag[1] = 1-Drag[1];
 		Drag[2] = 1-Drag[2];
 		Body.Velocity = Math.Multiply3( Body.Velocity, Drag );
-		Pop.Debug(Body.Velocity);
+		//Pop.Debug(Body.Velocity);
 		Body.Position = Pos;
 	}
 	Bodys.forEach( UpdateBody );
