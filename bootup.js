@@ -19,7 +19,7 @@ Pop.Include('PopXrInputLeapMotion.js');
 Pop.Include('PopEngineCommon/ParamsWindow.js');
 
 const MAX_SPHERES = 12;
-const MAX_PLANES = 2;
+const MAX_PLANES = 5;
 
 let Params = {};
 Params.FloorY = -0.05;
@@ -28,15 +28,23 @@ Params.FloorMetal = false;
 Params.WallMetal = false;
 Params.FloorFuzz = 0.1;
 Params.WallFuzz = 0.1;
+Params.SphereFuzz = 0;
+Params.SphereLight = 0;
+Params.FloorLight = 0;
+Params.WallLight = 0;
 
 let OnParamsChanged = function(Params){};
 let ParamsWindow = new CreateParamsWindow(Params,OnParamsChanged);
 ParamsWindow.AddParam('FloorY',-1,1);
-ParamsWindow.AddParam('WallZ',-1,1);
+ParamsWindow.AddParam('WallZ',-1,10);
 ParamsWindow.AddParam('FloorMetal');
 ParamsWindow.AddParam('WallMetal');
 ParamsWindow.AddParam('FloorFuzz',0,1);
 ParamsWindow.AddParam('WallFuzz',0,1);
+ParamsWindow.AddParam('SphereFuzz',0,1);
+ParamsWindow.AddParam('SphereLight',0,1);
+ParamsWindow.AddParam('FloorLight',0,1);
+ParamsWindow.AddParam('WallLight',0,1);
 
 function PadArray(Array,Size)
 {
@@ -237,10 +245,14 @@ function TActor_Box()
 	this.GetRenderSphere = function()
 	{
 		let Glass = 0;
+		let Fuzz = Params.SphereFuzz;
+		let Light = Params.SphereLight;
 		let Sphere = this.GetSphere();
 		let Colour = this.GrabPoint ? [0,0.8,1] : [1,1,1];
 		Sphere = Sphere.concat( Colour );
 		Sphere.push(Glass);
+		Sphere.push(Fuzz);
+		Sphere.push(Light);
 		return Sphere;
 	}
 }
@@ -294,7 +306,9 @@ function GetRenderSpheres()
 	let LeftState = LeapLeft.GetControllerState();
 	let RightState = LeapRight.GetControllerState();
 	let Glass = 0;
-	let OffColour = [0.8,0.8,0.8,Glass];
+	let Fuzz = Params.SphereFuzz;
+	let Light = Params.SphereLight;
+	let OffColour = [0.8,0.8,0.8,Glass,Fuzz,Light];
 	AppendController( LeftState, LeapControllerButtonRadius, OffColour );
 	AppendController( RightState, LeapControllerButtonRadius, OffColour);
 	
@@ -305,9 +319,13 @@ function GetRenderPlanes()
 {
 	let RenderPlanes = [];
 	
-	RenderPlanes.push( [0,1,0,Params.FloorY,	0.2,0.6,0.2,Params.FloorMetal,	Params.FloorFuzz ] );
-	RenderPlanes.push( [0,0,1,Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz ] );
-	
+	RenderPlanes.push( [0,1,0,Params.FloorY,	0.2,0.6,0.2,Params.FloorMetal,	Params.FloorFuzz,Params.FloorLight ] );
+	RenderPlanes.push( [0,0,1,Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
+	//RenderPlanes.push( [1,0,0,Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
+	//RenderPlanes.push( [0,0,1,-Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
+	//RenderPlanes.push( [1,0,0,-Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
+	//RenderPlanes.push( [0,0,1,-Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
+
 	return RenderPlanes;
 }
 

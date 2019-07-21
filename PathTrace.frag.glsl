@@ -12,10 +12,10 @@ void main()
 */
 
 #define M_PI 3.1415926535897932384626433832795
-#define BOUNCES	6
-#define SAMPLES 8
+#define BOUNCES	5
+#define SAMPLES 10
 #define MAX_SPHERES	2
-#define MAX_PLANES	2
+#define MAX_PLANES	5
 
 uniform float4 ViewportPx;
 uniform float random_seed;
@@ -38,7 +38,8 @@ const int mat_dielectric = 3;
 const int mat_metal = 2;
 const int mat_lambert = 1;
 
-struct Material {
+struct Material
+{
 	vec3 albedo;
 	float fuzz;
 	float ref_idx;
@@ -49,9 +50,11 @@ struct Material {
 	 3 = dielectric
 	 */
 	int scatter_function;
+	float Light;
 };
 
-struct HitRecord {
+struct HitRecord
+{
 	float Distance;
 	vec3 Position;
 	vec3 ExitPosition;
@@ -65,17 +68,18 @@ struct Sphere {
 	Material mat;
 };
 */
-Material floor_Material = Material(vec3(0.2, 0.4,0.8), 0.0, 0.0, mat_lambert);
-Material gray_metal = Material(vec3(0.6, 0.6, 0.8), 0.0001, 0.0, mat_metal);
-Material gold_metal = Material(vec3(0.8, 0.6, 0.2), 0.0001, 0.0, mat_metal);
-Material dielectric = Material(vec3(0),                0.0, 1.5, mat_dielectric);
-Material lambert    = Material(vec3(0.8, 0.8, 0.0),    0.0, 0.0, mat_lambert);
+Material floor_Material = Material(vec3(0.2, 0.4,0.8), 0.0, 0.0, mat_lambert, 0);
+Material gray_metal = Material(vec3(0.6, 0.6, 0.8), 0.0001, 0.0, mat_metal, 0);
+Material gold_metal = Material(vec3(0.8, 0.6, 0.2), 0.0001, 0.0, mat_metal, 0);
+Material dielectric = Material(vec3(0),                0.0, 1.5, mat_dielectric, 0);
+Material lambert    = Material(vec3(0.8, 0.8, 0.0),    0.0, 0.0, mat_lambert, 0);
 
-uniform bool Sky_SpotLight = true;
+uniform bool Sky_SpotLight = false;
 uniform vec3 Sky_LightColour = vec3(0.9,0.7,0.6);
 
 uniform mat4 Spheres[MAX_SPHERES];
 uniform mat4 Planes[MAX_PLANES];
+
 
 
 /* returns a varying number between 0 and 1 */
@@ -283,6 +287,11 @@ float GetSphereFuzz(mat4 Sphere)
 	return Sphere[2].x;
 }
 
+float GetSphereLight(mat4 Sphere)
+{
+	return Sphere[2].y;
+}
+
 Material GetSphereMaterial(mat4 Sphere)
 {
 	bool IsGlass = GetSphereGlass(Sphere);
@@ -292,6 +301,7 @@ Material GetSphereMaterial(mat4 Sphere)
 	//mat.scatter_function = mat_dielectric;
 	mat.scatter_function = IsGlass ? mat_refract : mat_metal;
 	mat.fuzz = GetSphereFuzz(Sphere);
+	mat.Light = GetSphereLight(Sphere);
 	return mat;
 }
 
@@ -316,6 +326,7 @@ Material GetPlaneMaterial(mat4 Sphere)
 	//mat.scatter_function = mat_dielectric;
 	mat.scatter_function = IsGlass ? mat_metal : mat_lambert;
 	mat.fuzz = GetSphereFuzz(Sphere);
+	mat.Light = GetSphereLight(Sphere);
 	return mat;
 }
 
@@ -378,6 +389,8 @@ float sdPlane( vec3 p, vec4 n )
 bool plane_hit(mat4 Plane, Ray r, float t_min, float t_max, out HitRecord hit)
 {
 	vec3 PlaneNormal = GetPlaneNormal(Plane);
+	if ( PlaneNormal == vec3(0,0,0) )
+		return false;
 	float PlaneOffset = GetPlaneOffset(Plane);
 	Material PlaneMaterial = GetPlaneMaterial(Plane);
 	
@@ -433,14 +446,66 @@ bool world_hit(Ray r, float t_min, float t_max, out HitRecord hit)
 	return hit_anything;
 }
 
+
+vec3 DirectLightSample(Ray r)
+{
+	//	gr: probably should be on each ray
+	//	but lets just let the renderer do one
+	
+	//	get light pos
+	//	make this an object, or test all light objects
+	vec3 LightPosition = vec3(0,4,0);
+	//vec3 ld = sampleLight( r.origin, seed ) - ro;
+	vec3 ld = LightPosition - r.origin;
+	
+	Ray LightRay;
+	LightRay.origin = r.origin;
+	LightRay.direction = normalize(ld);
+	
+	//	do we hit any objects?
+	HitRecord hit;
+	if ( world_hit(LightRay, 0.001, 1.0 / 0.0, hit) )
+	{
+		if ( hit.Distance < length(ld) )
+			return vec3(0,0,0);
+	}
+	
+	float t = 1;
+	vec3 BlendedColour = ((1.0-t)*vec3(1.0,1.0,1.0)+t*Sky_LightColour);
+	return BlendedColour;
+	/*
+		
+	if( !specularBounce && j < EYEPATHLENGTH-1 && !intersectShadow( ro, nld, length(ld)) ) {
+	 
+	 float cos_a_max = sqrt(1. - clamp(lightSphere.w * lightSphere.w / dot(lightSphere.xyz-ro, lightSphere.xyz-ro), 0., 1.));
+	 float weight = 2. * (1. - cos_a_max);
+	 
+	 tcol += (fcol * LIGHTCOLOR) * (weight * clamp(dot( nld, normal ), 0., 1.));
+	 }
+	 }
+	 */
+
+}
+
 vec3 color(Ray r)
 {
 	HitRecord hit;
 	vec3 col = vec3(0, 0, 0); /* visible color */
 	vec3 total_attenuation = vec3(1.0, 1.0, 1.0); /* reduction of light transmission */
+	vec3 Light = vec3(0,0,0);
+	float LightSamples = 1;
 	
+
 	for (int bounce = 0; bounce < BOUNCES; bounce++)
 	{
+		/*
+		if ( bounce < BOUNCES-1 )
+		{
+			Light += DirectLightSample(r);
+			LightSamples += 1;
+		}
+		*/
+		
 		if (world_hit(r, 0.001, 1.0 / 0.0, hit))
 		{
 			// create a new reflected ray
@@ -454,8 +519,10 @@ vec3 color(Ray r)
 			}
 			else
 			{
-				//total_attenuation *= vec3(0,0,0);
+				total_attenuation *= vec3(0,0,0);
+				//col += Light;
 			}
+			
 		}
 		else
 		{
@@ -466,10 +533,12 @@ vec3 color(Ray r)
 				t = 1.0;
 			vec3 BlendedColour = ((1.0-t)*vec3(1.0,1.0,1.0)+t*Sky_LightColour);
 			col = total_attenuation * BlendedColour;
+			Light = vec3(0,0,0);
 			break;
 		}
 	}
-	return col;
+	
+	return col + (Light/LightSamples);
 }
 
 void main()
@@ -513,6 +582,7 @@ void main()
 		r = get_ray( ScreenUv.x, ScreenUv.y );
 		col += color(r);
 	}
+	
 	col /= float(nsamples);
 	col = vec3(sqrt(col.x),sqrt(col.y),sqrt(col.z));
 	
