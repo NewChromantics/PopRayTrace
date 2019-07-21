@@ -12,9 +12,10 @@ void main()
 */
 
 #define M_PI 3.1415926535897932384626433832795
-#define BOUNCES	4
-#define SAMPLES 6
-#define MAX_SPHERES	12
+#define BOUNCES	6
+#define SAMPLES 8
+#define MAX_SPHERES	2
+#define MAX_PLANES	2
 
 uniform float4 ViewportPx;
 uniform float random_seed;
@@ -51,8 +52,9 @@ struct Material {
 };
 
 struct HitRecord {
-	float t;
-	vec3 p;
+	float Distance;
+	vec3 Position;
+	vec3 ExitPosition;
 	vec3 normal;
 	Material mat;
 };
@@ -63,7 +65,7 @@ struct Sphere {
 	Material mat;
 };
 */
-Material floor_Material = Material(vec3(0.2, 0.4,0.8), 0, 0.0, mat_lambert);
+Material floor_Material = Material(vec3(0.2, 0.4,0.8), 0.0, 0.0, mat_lambert);
 Material gray_metal = Material(vec3(0.6, 0.6, 0.8), 0.0001, 0.0, mat_metal);
 Material gold_metal = Material(vec3(0.8, 0.6, 0.2), 0.0001, 0.0, mat_metal);
 Material dielectric = Material(vec3(0),                0.0, 1.5, mat_dielectric);
@@ -72,9 +74,8 @@ Material lambert    = Material(vec3(0.8, 0.8, 0.0),    0.0, 0.0, mat_lambert);
 uniform bool Sky_SpotLight = true;
 uniform vec3 Sky_LightColour = vec3(0.9,0.7,0.6);
 
-uniform float FloorY = 0.0;
-
 uniform mat4 Spheres[MAX_SPHERES];
+uniform mat4 Planes[MAX_PLANES];
 
 
 /* returns a varying number between 0 and 1 */
@@ -109,8 +110,8 @@ vec3 random_in_unit_sphere(vec3 p)
 
 bool lambertian_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
 {
-	vec3 target = hit.p + hit.normal + random_in_unit_sphere(hit.p);
-	scattered = Ray(hit.p, target - hit.p);
+	vec3 target = hit.Position + hit.normal + random_in_unit_sphere(hit.Position);
+	scattered = Ray(hit.Position, target - hit.Position);
 	attenuation = mat.albedo;
 	return true;
 }
@@ -120,19 +121,43 @@ vec3 reflect(in vec3 v, in vec3 n)
 	return v - 2 * dot(v, n) * n;
 }
 */
+
+vec3 Slerp(vec3 p0, vec3 p1, float t)
+{
+	float dotp = dot(normalize(p0), normalize(p1));
+	if ((dotp > 0.9999) || (dotp<-0.9999))
+	{
+		if (t<=0.5)
+			return p0;
+		return p1;
+	}
+	float theta = acos(dotp);
+	vec3 P = ((p0*sin((1-t)*theta) + p1*sin(t*theta)) / sin(theta));
+	return P;
+}
+
 bool RefractionScatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
 {
 	//	for glass, this needs to know how thick the surface of what we hit was, so we know where the "other side" of the hit is
 	//	and have the ray come out there
 	float RefractionScalar = 0.66;	//	for chromatic abberation, use r=0.65 g=0.66 b=0.67
-	vec3 reflected = refract( normalize(r.direction), normalize(hit.normal), RefractionScalar );
-	//vec3 reflected = reflect(normalize(r.direction), hit.normal);
-	//vec3 reflected = normalize(r.direction);
+	vec3 Refracted = refract( normalize(r.direction), normalize(hit.normal), RefractionScalar );
+	vec3 Reflected = reflect(normalize(r.direction), normalize(hit.normal) );
+	//	perfect, so should make it essentially invisible
+	//vec3 Refracted = normalize(r.direction);
 	
-	//vec3 OtherSide = hit.p ;
-	vec3 OtherSide = hit.p + (r.direction*0.22);
-	//scattered = Ray(OtherSide, reflected + mat.fuzz * random_in_unit_sphere(hit.p));
-	scattered = Ray(OtherSide, reflected );
+	//	0..1 are we at perpendicular
+	float EdgeDot = (1.0-abs(dot(normalize(r.direction),hit.normal)));
+	/*
+	EdgeDot=1.0-EdgeDot;
+	EdgeDot*=EdgeDot;
+	EdgeDot=1.0-EdgeDot;
+	*/
+	Refracted = Slerp( Refracted, Reflected, EdgeDot );
+	
+	//	gr: this scatter needs changing for this case
+	scattered = Ray( hit.ExitPosition, Refracted + mat.fuzz * random_in_unit_sphere(hit.ExitPosition));
+	//scattered = Ray( hit.ExitPosition, Refracted );
 	
 	//	gr: this attenuation is where we can add chromatic abberation...
 	//		kinda need to spawn 3 rays out
@@ -147,7 +172,7 @@ bool RefractionScatter(in Material mat, in Ray r, in HitRecord hit, out vec3 att
 bool metal_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
 {
 	vec3 reflected = reflect(normalize(r.direction), hit.normal);
-	scattered = Ray(hit.p, reflected + mat.fuzz * random_in_unit_sphere(hit.p));
+	scattered = Ray(hit.Position, reflected + mat.fuzz * random_in_unit_sphere(hit.Position));
 	attenuation = mat.albedo;
 	return (dot(scattered.direction, hit.normal) > 0);
 }
@@ -194,9 +219,9 @@ bool dielectric_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 at
 	}
 	
 	if (drand48(r.direction.xy) < reflect_prob) {
-		scattered = Ray(hit.p, reflected);
+		scattered = Ray(hit.Position, reflected);
 	} else {
-		scattered = Ray(hit.p, refracted);
+		scattered = Ray(hit.Position, refracted);
 	}
 	return true;
 }
@@ -253,6 +278,11 @@ bool GetSphereGlass(mat4 Sphere)
 	return Sphere[1].w > 0.5;
 }
 
+float GetSphereFuzz(mat4 Sphere)
+{
+	return Sphere[2].x;
+}
+
 Material GetSphereMaterial(mat4 Sphere)
 {
 	bool IsGlass = GetSphereGlass(Sphere);
@@ -261,7 +291,31 @@ Material GetSphereMaterial(mat4 Sphere)
 	mat.albedo = Diffuse;
 	//mat.scatter_function = mat_dielectric;
 	mat.scatter_function = IsGlass ? mat_refract : mat_metal;
-	//mat.fuzz = 0.5;
+	mat.fuzz = GetSphereFuzz(Sphere);
+	return mat;
+}
+
+
+
+vec3 GetPlaneNormal(mat4 Sphere)
+{
+	return GetSphereCenter( Sphere );
+}
+
+float GetPlaneOffset(mat4 Sphere)
+{
+	return GetSphereRadius(Sphere);
+}
+
+Material GetPlaneMaterial(mat4 Sphere)
+{
+	bool IsGlass = GetSphereGlass(Sphere);
+	float3 Diffuse = GetSphereDiffuse(Sphere);
+	Material mat = floor_Material;
+	mat.albedo = Diffuse;
+	//mat.scatter_function = mat_dielectric;
+	mat.scatter_function = IsGlass ? mat_metal : mat_lambert;
+	mat.fuzz = GetSphereFuzz(Sphere);
 	return mat;
 }
 
@@ -272,25 +326,42 @@ bool sphere_hit(mat4 Sphere, Ray r, float t_min, float t_max, out HitRecord hit)
 	float SphereRadius = GetSphereRadius(Sphere);
 	Material SphereMaterial = GetSphereMaterial(Sphere);
 	
+	//	nearest point on line
 	vec3 oc = r.origin - SphereCenter;
 	float a = dot(r.direction, r.direction);
 	float b = dot(oc, r.direction);
 	float c = dot(oc, oc) - SphereRadius * SphereRadius;
 	float discriminant = b*b - a*c;
-	if (discriminant > 0) {
-		float temp = (-b - sqrt(b*b-a*c)) /a;
-		if (temp < t_max && temp > t_min) {
-			hit.t = temp;
-			hit.p = point_at_parameter(r, hit.t);
-			hit.normal = (hit.p - SphereCenter) / SphereRadius;
+	//	if discriminat is 0, it literally hits the edge (only one intesrection point as they're so close
+	//	<0 then miss
+	//	so anything over 0 has two intersection points
+	if (discriminant > 0)
+	{
+		//	get enter & exit rays
+		//	/a puts it into direction-normalised
+		float EnterTime = (-b - sqrt(b*b-a*c)) /a;
+		float ExitTime = (-b + sqrt(b*b-a*c)) /a;
+		
+		//	gr: these if()s check it's in our best-case limit, but this check should be outside
+		
+		if (EnterTime < t_max && EnterTime > t_min)
+		{
+			hit.Distance = EnterTime;
+			hit.Position = point_at_parameter(r, hit.Distance);
+			hit.ExitPosition = point_at_parameter(r, ExitTime);
+			
+			hit.normal = (hit.Position - SphereCenter) / SphereRadius;
 			hit.mat = SphereMaterial;
 			return true;
 		}
-		temp = (-b + sqrt(b*b-a*c)) /a;
-		if (temp < t_max && temp > t_min) {
-			hit.t = temp;
-			hit.p = point_at_parameter(r, hit.t);
-			hit.normal = (hit.p - SphereCenter) / SphereRadius;
+
+		if (ExitTime < t_max && ExitTime > t_min)
+		{
+			hit.Distance = ExitTime;
+			hit.Position = point_at_parameter(r, hit.Distance);
+			hit.ExitPosition = point_at_parameter(r, EnterTime);
+			
+			hit.normal = (hit.Position - SphereCenter) / SphereRadius;
 			hit.mat = SphereMaterial;
 			return true;
 		}
@@ -298,13 +369,37 @@ bool sphere_hit(mat4 Sphere, Ray r, float t_min, float t_max, out HitRecord hit)
 	return false;
 }
 
-bool plane_hit(Ray r, float t_min, float t_max, out HitRecord hit) {
-	float t = (-FloorY - r.origin.y) / r.direction.y;
-	if (t < t_min || t > t_max) return false;
-	hit.t = t;
-	hit.p = point_at_parameter(r, t);
-	hit.mat = floor_Material;
-	hit.normal = vec3(0, 1, 0);
+float sdPlane( vec3 p, vec4 n )
+{
+	// n must be normalized
+	return dot(p,n.xyz) + n.w;
+}
+
+bool plane_hit(mat4 Plane, Ray r, float t_min, float t_max, out HitRecord hit)
+{
+	vec3 PlaneNormal = GetPlaneNormal(Plane);
+	float PlaneOffset = GetPlaneOffset(Plane);
+	Material PlaneMaterial = GetPlaneMaterial(Plane);
+	
+	//	https://gist.github.com/doxas/e9a3d006c7d19d2a0047
+	float PlaneDistance = -PlaneOffset;
+	float Denom = dot( r.direction, PlaneNormal);
+	float t = -(dot( r.origin, PlaneNormal) + PlaneDistance) / Denom;
+
+	//	wrong side, enable for 2 sided
+	//if ( t <= 0 )		return false;
+	
+	if (t < t_min || t > t_max)
+		return false;
+	
+	//float t = (-FloorY - r.origin.y) / r.direction.y;
+	//if (t < t_min || t > t_max)
+	//	return false;
+	
+	hit.Distance = t;
+	hit.Position = point_at_parameter(r, t);
+	hit.mat = PlaneMaterial;
+	hit.normal = PlaneNormal;
 	return true;
 }
 
@@ -321,14 +416,18 @@ bool world_hit(Ray r, float t_min, float t_max, out HitRecord hit)
 		{
 			hit_anything = true;
 			hit = temp_hit;
-			closest_so_far = temp_hit.t;
+			closest_so_far = temp_hit.Distance;
 		}
 	}
 	
-	if (plane_hit(r, t_min, closest_so_far, temp_hit))
+	for (int i = 0; i <MAX_PLANES; i++)
 	{
-		hit_anything = true;
-		hit = temp_hit;
+		if (plane_hit(Planes[i], r, t_min, closest_so_far, temp_hit))
+		{
+			hit_anything = true;
+			hit = temp_hit;
+			closest_so_far = temp_hit.Distance;
+		}
 	}
 	
 	return hit_anything;

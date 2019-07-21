@@ -16,7 +16,27 @@ Pop.Include('PopEngineCommon/PopCamera.js');
 Pop.Include('PopEngineCommon/PopMath.js');
 Pop.Include('PopXrInputLeapMotion.js');
 
+Pop.Include('PopEngineCommon/ParamsWindow.js');
+
 const MAX_SPHERES = 12;
+const MAX_PLANES = 2;
+
+let Params = {};
+Params.FloorY = -0.05;
+Params.WallZ = -0.05;
+Params.FloorMetal = false;
+Params.WallMetal = false;
+Params.FloorFuzz = 0.1;
+Params.WallFuzz = 0.1;
+
+let OnParamsChanged = function(Params){};
+let ParamsWindow = new CreateParamsWindow(Params,OnParamsChanged);
+ParamsWindow.AddParam('FloorY',-1,1);
+ParamsWindow.AddParam('WallZ',-1,1);
+ParamsWindow.AddParam('FloorMetal');
+ParamsWindow.AddParam('WallMetal');
+ParamsWindow.AddParam('FloorFuzz',0,1);
+ParamsWindow.AddParam('WallFuzz',0,1);
 
 function PadArray(Array,Size)
 {
@@ -216,9 +236,9 @@ function TActor_Box()
 
 	this.GetRenderSphere = function()
 	{
-		let Glass = 1;
+		let Glass = 0;
 		let Sphere = this.GetSphere();
-		let Colour = this.GrabPoint ? [0,0.8,1] : [0.2,0.2,0.2];
+		let Colour = this.GrabPoint ? [0,0.8,1] : [1,1,1];
 		Sphere = Sphere.concat( Colour );
 		Sphere.push(Glass);
 		return Sphere;
@@ -281,6 +301,16 @@ function GetRenderSpheres()
 	return RenderSpheres;
 }
 
+function GetRenderPlanes()
+{
+	let RenderPlanes = [];
+	
+	RenderPlanes.push( [0,1,0,Params.FloorY,	0.2,0.6,0.2,Params.FloorMetal,	Params.FloorFuzz ] );
+	RenderPlanes.push( [0,0,1,Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz ] );
+	
+	return RenderPlanes;
+}
+
 
 function Render(RenderTarget)
 {
@@ -294,8 +324,10 @@ function Render(RenderTarget)
 	let Time = (Pop.GetTimeNowMs() % 1000) / 1000;
 	
 	let RenderSpheres = GetRenderSpheres();
-	RenderSpheres = UnrollArray16s(RenderSpheres,16*MAX_SPHERES)
-	
+	RenderSpheres = UnrollArray16s(RenderSpheres,16*MAX_SPHERES);
+	let RenderPlanes = GetRenderPlanes();
+	RenderPlanes = UnrollArray16s(RenderPlanes,16*MAX_PLANES);
+
 	let SetUniforms = function(Shader)
 	{
 		Shader.SetUniform('camera_lower_left_corner', Camera.LowerLeftCorner );
@@ -306,6 +338,7 @@ function Render(RenderTarget)
 		Shader.SetUniform('random_seed', RandomSeed );
 		Shader.SetUniform('Time', Time);
 		Shader.SetUniform('Spheres',RenderSpheres);
+		Shader.SetUniform('Planes',RenderPlanes);
 		//Shader.SetUniform('CameraProjectionMatrix',CameraProjectionMatrix);
 		Shader.SetUniform('CameraWorldPos',Camera.Position);
 	};
@@ -373,6 +406,7 @@ function UpdatePhysics(Timestep)
 {
 	Physics_UpdateCollisions( Timestep );
 	Physics_UpdatePositions( Timestep );
+	
 	
 	//	see if any clicking fingers intersect with the box
 	//	then drag
