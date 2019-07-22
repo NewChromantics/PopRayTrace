@@ -12,8 +12,8 @@ void main()
 */
 
 #define M_PI 3.1415926535897932384626433832795
-#define BOUNCES	5
-#define SAMPLES 10
+#define BOUNCES	10
+#define SAMPLES 2
 #define MAX_SPHERES	2
 #define MAX_PLANES	5
 

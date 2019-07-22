@@ -32,6 +32,8 @@ Params.SphereFuzz = 0;
 Params.SphereLight = 0;
 Params.FloorLight = 0;
 Params.WallLight = 0;
+Params.FloorColour = [0.2,0.6,0.2];
+Params.WallColour = [0.6,0.6,0.2];
 
 let OnParamsChanged = function(Params){};
 let ParamsWindow = new CreateParamsWindow(Params,OnParamsChanged);
@@ -45,6 +47,10 @@ ParamsWindow.AddParam('SphereFuzz',0,1);
 ParamsWindow.AddParam('SphereLight',0,1);
 ParamsWindow.AddParam('FloorLight',0,1);
 ParamsWindow.AddParam('WallLight',0,1);
+ParamsWindow.AddParam('FloorColour','Colour');
+ParamsWindow.AddParam('WallColour','Colour');
+
+
 
 function PadArray(Array,Size)
 {
@@ -319,8 +325,8 @@ function GetRenderPlanes()
 {
 	let RenderPlanes = [];
 	
-	RenderPlanes.push( [0,1,0,Params.FloorY,	0.2,0.6,0.2,Params.FloorMetal,	Params.FloorFuzz,Params.FloorLight ] );
-	RenderPlanes.push( [0,0,1,Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
+	RenderPlanes.push( [0,1,0,Params.FloorY,	Params.FloorColour[0],Params.FloorColour[1],Params.FloorColour[2],Params.FloorMetal,	Params.FloorFuzz,Params.FloorLight ] );
+	RenderPlanes.push( [0,0,1,Params.WallZ,		Params.WallColour[0],Params.WallColour[1],Params.WallColour[2],Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
 	//RenderPlanes.push( [1,0,0,Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
 	//RenderPlanes.push( [0,0,1,-Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
 	//RenderPlanes.push( [1,0,0,-Params.WallZ,		0.2,0.2,0.6,Params.WallMetal,	Params.WallFuzz,Params.WallLight ] );
