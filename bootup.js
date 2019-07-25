@@ -374,18 +374,21 @@ Window.OnRender = Render;
 
 Window.OnMouseDown = function(x,y,Button)
 {
-	if ( Button == 0 )
-		Camera.OnCameraPan( x, y, true );
-	if ( Button == 1 )
-		Camera.OnCameraZoom( x, y, true );
+	Window.OnMouseMove( x, y, Button, true );
 }
 
-Window.OnMouseMove = function(x,y,Button)
+Window.OnMouseMove = function(x,y,Button,FirstDown)
 {
-	if ( Button == 0 )
-		Camera.OnCameraPan( x, y, false );
+	FirstDown = (FirstDown===true);
+
 	if ( Button == 1 )
-		Camera.OnCameraZoom( x, y, false );
+		Camera.OnCameraOrbit( x, y, 0, FirstDown );
+	
+	if ( Button == 2 )
+		Camera.OnCameraPan( 0, y, 0, FirstDown );
+	
+	if ( Button == 0 )
+		Camera.OnCameraPan( x, 0, y, FirstDown );
 };
 
 
