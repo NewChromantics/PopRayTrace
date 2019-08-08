@@ -51,6 +51,44 @@ ParamsWindow.AddParam('FloorColour','Colour');
 ParamsWindow.AddParam('WallColour','Colour');
 
 
+function CreateQuadGeometry(RenderTarget)
+{
+	let VertexSize = 2;
+	let VertexData = [];
+	let TriangleIndexes = [];
+	
+	let AddTriangle = function(a,b,c)
+	{
+		let FirstTriangleIndex = VertexData.length / VertexSize;
+		
+		a.forEach( v => VertexData.push(v) );
+		b.forEach( v => VertexData.push(v) );
+		c.forEach( v => VertexData.push(v) );
+		
+		TriangleIndexes.push( FirstTriangleIndex+0 );
+		TriangleIndexes.push( FirstTriangleIndex+1 );
+		TriangleIndexes.push( FirstTriangleIndex+2 );
+	}
+	
+	let tln = [0,0];
+	let trn = [1,0];
+	let brn = [1,1];
+	let bln = [0,1];
+	
+	//	near
+	AddTriangle( tln, trn, brn );
+	AddTriangle( brn, bln, tln );
+	
+	
+	const VertexAttributeName = "TexCoord";
+	
+	//	loads much faster as a typed array
+	VertexData = new Float32Array( VertexData );
+	TriangleIndexes = new Int32Array(TriangleIndexes);
+	
+	let TriangleBuffer = new Pop.Opengl.TriangleBuffer( RenderTarget, VertexAttributeName, VertexData, VertexSize, TriangleIndexes );
+	return TriangleBuffer;
+}
 
 function PadArray(Array,Size)
 {
@@ -336,9 +374,16 @@ function GetRenderPlanes()
 }
 
 
+let QuadGeometry = null;
+
 function Render(RenderTarget)
 {
 	UpdateCamera(RenderTarget);
+	
+	
+	if ( !QuadGeometry )
+		QuadGeometry = CreateQuadGeometry(RenderTarget);
+	
 	
 	const Viewport = RenderTarget.GetScreenRect();
 	const CameraProjectionMatrix = Camera.GetProjectionMatrix(Viewport);
@@ -366,7 +411,7 @@ function Render(RenderTarget)
 		//Shader.SetUniform('CameraProjectionMatrix',CameraProjectionMatrix);
 		Shader.SetUniform('CameraWorldPos',Camera.Position);
 	};
-	RenderTarget.DrawQuad( Shader, SetUniforms );
+	RenderTarget.DrawGeometry( QuadGeometry, Shader, SetUniforms );
 }
 
 let Window = new Pop.Opengl.Window("Pop.Shiny");
