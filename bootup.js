@@ -10,7 +10,7 @@ Pop.Include = function(Filename)
 const VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
 const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
 
-Pop.Include('PopShaderCache.js');
+Pop.Include('PopEngineCommon/PopShaderCache.js');
 Pop.Include('PopEngineCommon/PopFrameCounter.js');
 Pop.Include('PopEngineCommon/PopCamera.js');
 Pop.Include('PopEngineCommon/PopMath.js');
@@ -344,7 +344,7 @@ function Render(RenderTarget)
 	const CameraProjectionMatrix = Camera.GetProjectionMatrix(Viewport);
 	
 	let RandomSeed = 0;
-	let Shader = Pop.GetShader( RenderTarget, PathTraceShader );
+	let Shader = Pop.GetShader( RenderTarget, PathTraceShader, VertShader );
 	let Time = (Pop.GetTimeNowMs() % 1000) / 1000;
 	
 	let RenderSpheres = GetRenderSpheres();
