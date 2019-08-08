@@ -40,7 +40,7 @@ let TLeapMotionContext = function()
 			{
 				Pop.Debug("Leap error",e);
 				this.Leap = null;
-				await Pop.Yield(100);
+				await Pop.Yield(999100);
 			}
 		}
 	}

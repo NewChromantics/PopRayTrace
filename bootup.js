@@ -380,6 +380,7 @@ function Render(RenderTarget)
 {
 	UpdateCamera(RenderTarget);
 	
+	RenderTarget.ClearColour(0,1,1);
 	
 	if ( !QuadGeometry )
 		QuadGeometry = CreateQuadGeometry(RenderTarget);
