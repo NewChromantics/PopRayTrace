@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+
+	<script src='PopEngineCommon/PopWebApi.js'></script>
+	<script>
+		
+		async function Bootup()
+		{
+			//	preload some assets that we don't load asynchronously
+			await Pop.AsyncCacheAsset('Quad.vert.glsl');
+			await Pop.AsyncCacheAsset('PathTrace.frag.glsl');
+			await Pop.AsyncCacheAsset('PopEngineCommon/PopShaderCache.js');
+			await Pop.AsyncCacheAsset('PopEngineCommon/PopFrameCounter.js');
+			await Pop.AsyncCacheAsset('PopEngineCommon/PopCamera.js');
+			await Pop.AsyncCacheAsset('PopXrInputLeapMotion.js');
+			await Pop.AsyncCacheAsset('PopEngineCommon/ParamsWindow.js');
+
+			let Source = await Pop.LoadFileAsStringAsync('bootup.js');
+			Pop.CompileAndRun( Source, 'bootup.js' );
+		}
+
+		Bootup().then( e=>Pop.Debug("Finished!",e) ).catch( console.error );
+	
+	</script>
+	
+</body>
+
