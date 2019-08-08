@@ -26,7 +26,7 @@ uniform vec3 camera_lower_left_corner;
 uniform vec3 camera_horizontal;
 uniform vec3 camera_vertical;
 uniform float camera_lens_radius;
-uniform float Time = 0;
+uniform float Time;// = 0;
 
 struct Ray {
 	vec3 origin;
@@ -74,8 +74,8 @@ Material gold_metal = Material(vec3(0.8, 0.6, 0.2), 0.0001, 0.0, mat_metal, 0);
 Material dielectric = Material(vec3(0),                0.0, 1.5, mat_dielectric, 0);
 Material lambert    = Material(vec3(0.8, 0.8, 0.0),    0.0, 0.0, mat_lambert, 0);
 
-uniform bool Sky_SpotLight = false;
-uniform vec3 Sky_LightColour = vec3(0.9,0.7,0.6);
+uniform bool Sky_SpotLight;// = false;
+uniform vec3 Sky_LightColour;// = vec3(0.9,0.7,0.6);
 
 uniform mat4 Spheres[MAX_SPHERES];
 uniform mat4 Planes[MAX_PLANES];

@@ -8,7 +8,8 @@ Pop.Include = function(Filename)
 
 
 const VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
-const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
+//const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
+const PathTraceShader = Pop.LoadFileAsString('Red.frag.glsl');
 
 Pop.Include('PopEngineCommon/PopShaderCache.js');
 Pop.Include('PopEngineCommon/PopFrameCounter.js');
@@ -400,6 +401,9 @@ function Render(RenderTarget)
 
 	let SetUniforms = function(Shader)
 	{
+		//	gotta init defaults for web
+		Shader.SetUniform('VertexRect', [0,0,1,1] );
+		
 		Shader.SetUniform('camera_lower_left_corner', Camera.LowerLeftCorner );
 		Shader.SetUniform('camera_horizontal', Camera.Horizontal );
 		Shader.SetUniform('camera_vertical', Camera.Vertical );
