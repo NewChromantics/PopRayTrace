@@ -1,4 +1,5 @@
 precision highp float;
+
 varying vec2 uv;
 /*
 #define SPHERE_COUNT	1
@@ -12,8 +13,8 @@ void main()
 */
 
 #define M_PI 3.1415926535897932384626433832795
-#define BOUNCES	4
-#define SAMPLES 8
+#define BOUNCES	10
+#define SAMPLES 4
 #define MAX_SPHERES	2
 #define MAX_PLANES	5
 
@@ -68,11 +69,11 @@ struct Sphere {
 	Material mat;
 };
 */
-Material floor_Material = Material(vec3(0.2, 0.4,0.8), 0.0, 0.0, mat_lambert, 0);
-Material gray_metal = Material(vec3(0.6, 0.6, 0.8), 0.0001, 0.0, mat_metal, 0);
-Material gold_metal = Material(vec3(0.8, 0.6, 0.2), 0.0001, 0.0, mat_metal, 0);
-Material dielectric = Material(vec3(0),                0.0, 1.5, mat_dielectric, 0);
-Material lambert    = Material(vec3(0.8, 0.8, 0.0),    0.0, 0.0, mat_lambert, 0);
+Material floor_Material = Material(vec3(0.2, 0.4,0.8), 0.0, 0.0, mat_lambert, 0.0);
+Material gray_metal = Material(vec3(0.6, 0.6, 0.8), 0.0001, 0.0, mat_metal, 0.0);
+Material gold_metal = Material(vec3(0.8, 0.6, 0.2), 0.0001, 0.0, mat_metal, 0.0);
+Material dielectric = Material(vec3(0),                0.0, 1.5, mat_dielectric, 0.0);
+Material lambert    = Material(vec3(0.8, 0.8, 0.0),    0.0, 0.0, mat_lambert, 0.0);
 
 uniform bool Sky_SpotLight;// = false;
 uniform vec3 Sky_LightColour;// = vec3(0.9,0.7,0.6);
@@ -85,16 +86,18 @@ uniform mat4 Planes[MAX_PLANES];
 /* returns a varying number between 0 and 1 */
 float drand48(vec2 co)
 {
-	return 2 * fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453) - 1;
+	return 2.0 * fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453) - 1.0;
 }
 
-vec3 random_in_unit_disk(vec2 co) {
+vec3 random_in_unit_disk(vec2 co)
+{
 	vec3 p;
-	int n = 0;
-	do {
+	for ( int n=0;	n<3;	n++ )
+	{
 		p = vec3(drand48(co.xy), drand48(co.yx), 0);
-		n++;
-	} while (dot(p,p) >= 1.0 && n < 3);
+		if ( dot(p,p) < 1.0 )
+			break;
+	}
 	return p;
 }
 
@@ -104,15 +107,16 @@ float squared_length(vec3 v) {
 
 vec3 random_in_unit_sphere(vec3 p)
 {
-	int n = 0;
-	do {
+	for ( int n=0;	n<3;	n++ )
+	{
 		p = vec3(drand48(p.xy), drand48(p.zy), drand48(p.xz));
-		n++;
-	} while(squared_length(p) >= 1.0 && n < 3);
+		if ( squared_length(p) < 1.0 )
+			break;
+	}
 	return p;
 }
 
-bool lambertian_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
+bool lambertian_scatter(Material mat,Ray r,HitRecord hit, out vec3 attenuation, out Ray scattered)
 {
 	vec3 target = hit.Position + hit.normal + random_in_unit_sphere(hit.Position);
 	scattered = Ray(hit.Position, target - hit.Position);
@@ -136,11 +140,11 @@ vec3 Slerp(vec3 p0, vec3 p1, float t)
 		return p1;
 	}
 	float theta = acos(dotp);
-	vec3 P = ((p0*sin((1-t)*theta) + p1*sin(t*theta)) / sin(theta));
+	vec3 P = ((p0*sin((1.0-t)*theta) + p1*sin(t*theta)) / sin(theta));
 	return P;
 }
 
-bool RefractionScatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
+bool RefractionScatter(Material mat,Ray r,HitRecord hit, out vec3 attenuation, out Ray scattered)
 {
 	//	for glass, this needs to know how thick the surface of what we hit was, so we know where the "other side" of the hit is
 	//	and have the ray come out there
@@ -173,25 +177,26 @@ bool RefractionScatter(in Material mat, in Ray r, in HitRecord hit, out vec3 att
 	return true;
 }
 
-bool metal_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered)
+bool metal_scatter(Material mat,Ray r,HitRecord hit, out vec3 attenuation, out Ray scattered)
 {
 	vec3 reflected = reflect(normalize(r.direction), hit.normal);
 	scattered = Ray(hit.Position, reflected + mat.fuzz * random_in_unit_sphere(hit.Position));
 	attenuation = mat.albedo;
-	return (dot(scattered.direction, hit.normal) > 0);
+	return (dot(scattered.direction, hit.normal) > 0.0);
 }
 
-float schlick(in float cosine, in float ref_idx) {
-	float r0 = (1 - ref_idx) / (1 + ref_idx);
+float schlick(float cosine,float ref_idx) {
+	float r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
 	r0 = r0 * r0;
-	return r0 + (1 - r0) * pow((1 - cosine), 5);
+	return r0 + (1.0 - r0) * pow((1.0 - cosine), 5.0);
 }
 
-bool refract(in vec3 v, in vec3 n, in float ni_over_nt, out vec3 refracted) {
+bool refract(vec3 v,vec3 n,float ni_over_nt, out vec3 refracted) {
 	vec3 uv = normalize(v);
 	float dt = dot(uv, n);
-	float discriminant = 1.0 - ni_over_nt * ni_over_nt * (1 - dt * dt);
-	if (discriminant > 0) {
+	float discriminant = 1.0 - ni_over_nt * ni_over_nt * (1.0 - dt * dt);
+	if (discriminant > 0.0)
+	{
 		refracted = ni_over_nt * (uv - n * dt) - n * sqrt(discriminant);
 		return true;
 	} else {
@@ -199,7 +204,7 @@ bool refract(in vec3 v, in vec3 n, in float ni_over_nt, out vec3 refracted) {
 	}
 }
 
-bool dielectric_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 attenuation, out Ray scattered) {
+bool dielectric_scatter(Material mat,Ray r,HitRecord hit, out vec3 attenuation, out Ray scattered) {
 	vec3 outward_normal;
 	vec3 reflected = reflect(r.direction, hit.normal);
 	float ni_over_nt;
@@ -207,7 +212,8 @@ bool dielectric_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 at
 	vec3 refracted;
 	float reflect_prob;
 	float cosine;
-	if (dot(r.direction, hit.normal) > 0) {
+	if (dot(r.direction, hit.normal) > 0.0)
+	{
 		outward_normal = - hit.normal;
 		ni_over_nt = mat.ref_idx;
 		cosine = mat.ref_idx * dot(r.direction, hit.normal) / length(r.direction);
@@ -230,7 +236,7 @@ bool dielectric_scatter(in Material mat, in Ray r, in HitRecord hit, out vec3 at
 	return true;
 }
 
-bool dispatch_scatter(in Ray r, HitRecord hit, out vec3 attenuation, out Ray scattered)
+bool dispatch_scatter(Ray r, HitRecord hit, out vec3 attenuation, out Ray scattered)
 {
 	if(hit.mat.scatter_function == mat_dielectric)
 	{
@@ -346,7 +352,7 @@ bool sphere_hit(mat4 Sphere, Ray r, float t_min, float t_max, out HitRecord hit)
 	//	if discriminat is 0, it literally hits the edge (only one intesrection point as they're so close
 	//	<0 then miss
 	//	so anything over 0 has two intersection points
-	if (discriminant > 0)
+	if (discriminant > 0.0)
 	{
 		//	get enter & exit rays
 		//	/a puts it into direction-normalised
@@ -470,7 +476,7 @@ vec3 DirectLightSample(Ray r)
 			return vec3(0,0,0);
 	}
 	
-	float t = 1;
+	float t = 1.0;
 	vec3 BlendedColour = ((1.0-t)*vec3(1.0,1.0,1.0)+t*Sky_LightColour);
 	return BlendedColour;
 	/*
@@ -493,7 +499,7 @@ vec3 color(Ray r)
 	vec3 col = vec3(0, 0, 0); /* visible color */
 	vec3 total_attenuation = vec3(1.0, 1.0, 1.0); /* reduction of light transmission */
 	vec3 Light = vec3(0,0,0);
-	float LightSamples = 1;
+	float LightSamples = 1.0;
 	
 
 	for (int bounce = 0; bounce < BOUNCES; bounce++)
@@ -543,24 +549,6 @@ vec3 color(Ray r)
 
 void main()
 {
-	//	gr: this works!
-	/*
-	float u = uv.x;
-	float v = uv.y;
-	Ray r = get_ray(u, v);
-	vec3 col = color(r);
-	gl_FragColor = vec4(col, 1.0);
-	//*/
-	
-	/*
-	float Noise = drand48(uv);
-	if ( Noise > 0.01 && Noise < 0.99 )
-		gl_FragColor = float4( 0,1,0, 1 );
-	else
-		gl_FragColor = float4( Noise, Noise, Noise, 1 );
-	return;
-	 */
-	
 	vec3 col = vec3(0,0,0);
 	float u, v;
 	Ray r;
@@ -568,8 +556,8 @@ void main()
 	for (int s = 0; s < nsamples; s++)
 	{
 		float2 Noise;
-		Noise.x = s;
-		Noise.y = s;
+		Noise.x = float(s);
+		Noise.y = float(s);
 		Noise.x = drand48( col.xy + Noise );
 		Noise.y = drand48( col.xz + Noise );
 		Noise -= 0.5;
@@ -587,5 +575,4 @@ void main()
 	col = vec3(sqrt(col.x),sqrt(col.y),sqrt(col.z));
 	
 	gl_FragColor = vec4(col, 1.0);
-	//*/
 }

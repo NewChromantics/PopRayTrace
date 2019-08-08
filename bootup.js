@@ -8,8 +8,8 @@ Pop.Include = function(Filename)
 
 
 const VertShader = Pop.LoadFileAsString('Quad.vert.glsl');
-//const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
-const PathTraceShader = Pop.LoadFileAsString('Red.frag.glsl');
+const PathTraceShader = Pop.LoadFileAsString('PathTrace.frag.glsl');
+//const PathTraceShader = Pop.LoadFileAsString('Red.frag.glsl');
 
 Pop.Include('PopEngineCommon/PopShaderCache.js');
 Pop.Include('PopEngineCommon/PopFrameCounter.js');
@@ -25,16 +25,16 @@ const MAX_PLANES = 5;
 let Params = {};
 Params.FloorY = -0.05;
 Params.WallZ = -0.05;
-Params.FloorMetal = false;
-Params.WallMetal = false;
-Params.FloorFuzz = 0.1;
-Params.WallFuzz = 0.1;
-Params.SphereFuzz = 0;
+Params.FloorMetal = true;
+Params.WallMetal = true;
+Params.FloorFuzz = 0.0;
+Params.WallFuzz = 0.0;
+Params.SphereFuzz = 0.0;
 Params.SphereLight = 0;
 Params.FloorLight = 0;
 Params.WallLight = 0;
-Params.FloorColour = [0.2,0.6,0.2];
-Params.WallColour = [0.6,0.6,0.2];
+Params.FloorColour = [0.20,0.56,0.93];
+Params.WallColour = [0.93,0.18,0.46];
 
 let OnParamsChanged = function(Params){};
 let ParamsWindow = new CreateParamsWindow(Params,OnParamsChanged);
@@ -403,6 +403,8 @@ function Render(RenderTarget)
 	{
 		//	gotta init defaults for web
 		Shader.SetUniform('VertexRect', [0,0,1,1] );
+		//Shader.SetUniform('Sky_SpotLight', true );
+		Shader.SetUniform('Sky_LightColour', [0.9,0.7,0.6] );
 		
 		Shader.SetUniform('camera_lower_left_corner', Camera.LowerLeftCorner );
 		Shader.SetUniform('camera_horizontal', Camera.Horizontal );
