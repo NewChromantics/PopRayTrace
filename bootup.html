@@ -7,20 +7,21 @@
 	<script src='PopEngineCommon/PopWebApi.js'></script>
 	<script src='PopEngineCommon/PopWebOpenglApi.js'></script>
 	<script src='PopEngineCommon/PopWebGuiApi.js'></script>
+	<script src='PopEngineCommon/PopWebImageApi.js'></script>
 	<script>
 		
 		async function Bootup()
 		{
 			//	preload some assets that we don't load asynchronously
-			await Pop.AsyncCacheAsset('Quad.vert.glsl');
-			await Pop.AsyncCacheAsset('PathTrace.frag.glsl');
-			await Pop.AsyncCacheAsset('Red.frag.glsl');
-			await Pop.AsyncCacheAsset('PopEngineCommon/PopShaderCache.js');
-			await Pop.AsyncCacheAsset('PopEngineCommon/PopFrameCounter.js');
-			await Pop.AsyncCacheAsset('PopEngineCommon/PopCamera.js');
-			await Pop.AsyncCacheAsset('PopEngineCommon/PopMath.js');
-			await Pop.AsyncCacheAsset('PopXrInputLeapMotion.js');
-			await Pop.AsyncCacheAsset('PopEngineCommon/ParamsWindow.js');
+			await Pop.AsyncCacheAssetAsString('Quad.vert.glsl');
+			await Pop.AsyncCacheAssetAsString('PathTrace.frag.glsl');
+			await Pop.AsyncCacheAssetAsString('Red.frag.glsl');
+			await Pop.AsyncCacheAssetAsString('PopEngineCommon/PopShaderCache.js');
+			await Pop.AsyncCacheAssetAsString('PopEngineCommon/PopFrameCounter.js');
+			await Pop.AsyncCacheAssetAsString('PopEngineCommon/PopCamera.js');
+			await Pop.AsyncCacheAssetAsString('PopEngineCommon/PopMath.js');
+			await Pop.AsyncCacheAssetAsString('PopXrInputLeapMotion.js');
+			await Pop.AsyncCacheAssetAsString('PopEngineCommon/ParamsWindow.js');
 
 			let Source = await Pop.LoadFileAsStringAsync('bootup.js');
 			Pop.CompileAndRun( Source, 'bootup.js' );
